@@ -11,6 +11,7 @@ export interface Crumb {
 }
 
 defineProps<{ crumbs: Crumb[] }>()
+const emit = defineEmits<{ 'open-palette': [] }>()
 
 const bar: CSSProperties = {
   height: '64px',
@@ -92,7 +93,7 @@ function crumbStyle(last: boolean, link: boolean): CSSProperties {
 
     <div :style="{ flex: 1 }" />
 
-    <div :style="search">
+    <div :style="search" @click="emit('open-palette')">
       <Icon name="search" :size="14" />
       <span :style="{ fontFamily: L.body, fontSize: '13px', flex: 1 }">Search or ask Crew…</span>
       <span :style="kbd">⌘K</span>
