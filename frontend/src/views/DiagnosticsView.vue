@@ -2,6 +2,7 @@
 import { computed, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, TONE, type Tone } from '@/dock/status'
 import { diagnostics } from '@/dock/data'
 import DCard from '@/components/kit/DCard.vue'
@@ -13,6 +14,7 @@ import PageHead from '@/components/kit/PageHead.vue'
 import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
+const { isMobile, isCompact } = useBreakpoint()
 const dg = diagnostics
 
 /* summary tiles: [label, value, tone] */
@@ -95,26 +97,45 @@ function incidentLabel(tone: Tone): string {
   return tone === 'crit' ? 'CRITICAL' : tone === 'warn' ? 'WARNING' : 'INFO'
 }
 
-const page: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', margin: '0 auto' }
+const page = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '26px 28px',
+  maxWidth: '1280px',
+  margin: '0 auto',
+}))
 const tile: CSSProperties = {
-  flex: 1,
+  minWidth: 0,
   padding: '14px 16px',
   background: L.panel,
   border: `1px solid ${L.border}`,
   borderRadius: '12px',
   boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
 }
-const grid: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }
-const trendNowStyle: CSSProperties = { fontFamily: L.mono, fontSize: '11px', color: L.text2 }
-const ROWGRID = '90px 1fr 1fr 120px 90px'
-const headerRow: CSSProperties = {
+const tileRow = computed<CSSProperties>(() => ({
   display: 'grid',
-  gridTemplateColumns: ROWGRID,
+  gridTemplateColumns: isMobile.value ? '1fr 1fr' : 'repeat(4, 1fr)',
+  gap: isMobile.value ? '10px' : '14px',
+  marginBottom: '16px',
+}))
+const grid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 1fr',
+  gap: '16px',
+  marginBottom: '16px',
+}))
+const trendNowStyle: CSSProperties = { fontFamily: L.mono, fontSize: '11px', color: L.text2 }
+/* On mobile, drop the non-essential "When" column to keep the table within width. */
+const rowGrid = computed(() => (isMobile.value ? '74px 1fr 80px' : '90px 1fr 1fr 120px 90px'))
+const tableHeaders = computed(() =>
+  isMobile.value ? ['Severity', 'Issue', 'Duration'] : ['Severity', 'System', 'Issue', 'When', 'Duration'],
+)
+const headerRow = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: rowGrid.value,
   gap: '12px',
   padding: '10px 18px',
   borderBottom: `1px solid ${L.border}`,
   background: '#FCFCFD',
-}
+}))
 const crewBox: CSSProperties = {
   display: 'flex',
   gap: '12px',
@@ -140,7 +161,7 @@ const trendGeoms = computed(() => trends.map((t) => trendGeom(t)))
     </PageHead>
 
     <!-- summary tiles -->
-    <div :style="{ display: 'flex', gap: '14px', marginBottom: '16px' }">
+    <div :style="tileRow">
       <div v-for="t in tiles" :key="t[0]" :style="tile">
         <div :style="{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '10px' }">
           <DockDot :tone="t[2]" />
@@ -157,7 +178,8 @@ const trendGeoms = computed(() => trends.map((t) => trendGeom(t)))
         <svg
           :viewBox="`0 0 ${TW} ${TH + 16}`"
           width="100%"
-          :style="{ display: 'block', overflow: 'visible' }"
+          preserveAspectRatio="xMidYMid meet"
+          :style="{ display: 'block', width: '100%', maxWidth: '100%', overflow: 'hidden' }"
         >
           <g v-if="trendGeoms[ti].thY != null">
             <line
@@ -215,14 +237,14 @@ const trendGeoms = computed(() => trends.map((t) => trendGeom(t)))
     <DCard title="Incident history" :pad="0">
       <template #action><SecLabel>last 7 days</SecLabel></template>
       <div :style="headerRow">
-        <SecLabel v-for="h in ['Severity', 'System', 'Issue', 'When', 'Duration']" :key="h">{{ h }}</SecLabel>
+        <SecLabel v-for="h in tableHeaders" :key="h">{{ h }}</SecLabel>
       </div>
       <div
         v-for="(it, i) in dg.incidents"
         :key="i"
         :style="{
           display: 'grid',
-          gridTemplateColumns: ROWGRID,
+          gridTemplateColumns: rowGrid,
           gap: '12px',
           alignItems: 'center',
           padding: '12px 18px',
@@ -230,9 +252,11 @@ const trendGeoms = computed(() => trends.map((t) => trendGeom(t)))
         }"
       >
         <Pill :tone="it.tone">{{ incidentLabel(it.tone) }}</Pill>
-        <span :style="{ fontFamily: L.mono, fontSize: '12px', fontWeight: 600, color: L.text }">{{ it.sys }}</span>
-        <span :style="{ fontFamily: L.body, fontSize: '12.5px', color: L.text2 }">{{ it.issue }}</span>
-        <span :style="{ fontFamily: L.mono, fontSize: '11px', color: L.text3 }">{{ it.when }}</span>
+        <span v-if="!isMobile" :style="{ fontFamily: L.mono, fontSize: '12px', fontWeight: 600, color: L.text }">{{ it.sys }}</span>
+        <span :style="{ fontFamily: L.body, fontSize: '12.5px', color: L.text2, minWidth: 0, overflowWrap: 'anywhere' }">
+          {{ it.issue }}<template v-if="isMobile"> · <span :style="{ color: L.text3 }">{{ it.sys }}</span></template>
+        </span>
+        <span v-if="!isMobile" :style="{ fontFamily: L.mono, fontSize: '11px', color: L.text3 }">{{ it.when }}</span>
         <span :style="{ fontFamily: L.mono, fontSize: '11px', color: it.dur === 'ongoing' ? S.crit : L.text2 }">{{ it.dur }}</span>
       </div>
     </DCard>

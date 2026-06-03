@@ -2,6 +2,7 @@
 import { computed, type CSSProperties } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, type Tone } from '@/dock/status'
 import { systems, sessions, type DockSystem } from '@/dock/data'
 import DCard from '@/components/kit/DCard.vue'
@@ -16,6 +17,7 @@ import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { isMobile, isCompact } = useBreakpoint()
 
 const KIND_LABEL: Record<string, string> = {
   core: 'Control plane',
@@ -95,8 +97,35 @@ function borderFor(status: Tone): string {
 const MONO = L.mono
 const BODY = L.body
 
-const detailPage: CSSProperties = { padding: '24px 28px', maxWidth: '1100px', margin: '0 auto' }
-const listPage: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', margin: '0 auto' }
+const detailPage = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '24px 28px',
+  maxWidth: '1100px',
+  margin: '0 auto',
+}))
+const listPage = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '26px 28px',
+  maxWidth: '1280px',
+  margin: '0 auto',
+}))
+// Detail: metric cards row → single column when stacked.
+const metricGrid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 1fr 1fr',
+  gap: '14px',
+  marginBottom: '16px',
+}))
+// Detail: capabilities + history panels → stacked when compact.
+const panelGrid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 1fr',
+  gap: '16px',
+}))
+// Inventory: desktop 4-col → tablet 2-col → mobile 1-col.
+const inventoryGrid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile.value ? '1fr' : isCompact.value ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+  gap: '12px',
+}))
 </script>
 
 <template>
@@ -124,9 +153,7 @@ const listPage: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', marg
       <Btn icon="spark" sm @click="router.push('/crew')">Ask Crew</Btn>
     </div>
 
-    <div
-      :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '16px' }"
-    >
+    <div :style="metricGrid">
       <DCard v-for="m in metrics" :key="m.label" :pad="15">
         <SecLabel :style="{ marginBottom: '10px' }">{{ m.label }}</SecLabel>
         <div :style="{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }">
@@ -136,7 +163,7 @@ const listPage: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', marg
       </DCard>
     </div>
 
-    <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }">
+    <div :style="panelGrid">
       <DCard title="Capabilities">
         <div :style="{ display: 'flex', flexWrap: 'wrap', gap: '8px' }">
           <Pill v-for="(c, i) in capabilities" :key="i" tone="idle" :icon="false">{{ c }}</Pill>
@@ -175,7 +202,7 @@ const listPage: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', marg
         <span :style="{ fontFamily: MONO, fontSize: '10px', color: L.text3 }">{{ list.length }} systems</span>
       </div>
 
-      <div :style="{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }">
+      <div :style="inventoryGrid">
         <DCard
           v-for="s in list"
           :key="s.id"

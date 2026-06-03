@@ -2,10 +2,13 @@
 import { computed, ref, type CSSProperties } from 'vue'
 import { L } from '@/design/tokens'
 import { S } from '@/dock/status'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { SCENARIOS, sectionLabel, suggestionsFor, seededReply, type DockRoute, type Scenario } from '@/dock/crew'
 import Icon from '@/components/kit/Icon.vue'
 import SecLabel from '@/components/kit/SecLabel.vue'
 import Btn from '@/components/kit/Btn.vue'
+
+const { isMobile } = useBreakpoint()
 
 const props = defineProps<{
   route: DockRoute
@@ -45,16 +48,19 @@ function endScenario() {
   step.value = 0
 }
 
-const root: CSSProperties = {
-  width: '520px',
-  flex: '0 0 520px',
+// Fills the width on phones (it lives in a full-screen overlay there);
+// fixed 520px beside the rail / in the tablet overlay otherwise.
+const root = computed<CSSProperties>(() => ({
+  width: isMobile.value ? '100%' : '520px',
+  flex: isMobile.value ? '1 1 auto' : '0 0 520px',
+  maxWidth: '100%',
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
   minHeight: 0,
   background: L.panel,
   borderRight: `1px solid ${L.border}`,
-}
+}))
 const sparkBadge: CSSProperties = {
   width: '26px',
   height: '26px',

@@ -2,6 +2,7 @@
 import { computed, ref, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, type Tone } from '@/dock/status'
 import { knowledge } from '@/dock/data'
 import DCard from '@/components/kit/DCard.vue'
@@ -12,6 +13,7 @@ import PageHead from '@/components/kit/PageHead.vue'
 import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
+const { isMobile, isCompact } = useBreakpoint()
 
 const KIND_TONE: Record<string, Tone> = {
   Generated: 'accent',
@@ -44,13 +46,17 @@ function openCard(cites: number): void {
   if (cites) router.push('/crew')
 }
 
-const page: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', margin: '0 auto' }
-const grid: CSSProperties = {
+const page = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '26px 28px',
+  maxWidth: '1280px',
+  margin: '0 auto',
+}))
+const grid = computed<CSSProperties>(() => ({
   display: 'grid',
-  gridTemplateColumns: '1fr 280px',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 280px',
   gap: '16px',
   alignItems: 'start',
-}
+}))
 const searchBar: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -156,7 +162,7 @@ const railTag: CSSProperties = {
 
       <!-- right rail -->
       <div :style="{ display: 'flex', flexDirection: 'column', gap: '16px' }">
-        <DCard title="Knowledge graph">
+        <DCard v-if="!isMobile" title="Knowledge graph">
           <div :style="{ display: 'flex', flexDirection: 'column', gap: '11px' }">
             <div v-for="r in graphRows" :key="r[0]" :style="{ display: 'flex', alignItems: 'center', gap: '9px' }">
               <DockDot :tone="r[2]" />

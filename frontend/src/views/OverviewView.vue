@@ -2,6 +2,7 @@
 import { computed, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, type Tone } from '@/dock/status'
 import { sessions, systems, eventStream, crewRecs } from '@/dock/data'
 import DCard from '@/components/kit/DCard.vue'
@@ -16,6 +17,7 @@ import PageHead from '@/components/kit/PageHead.vue'
 import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
+const { isMobile, isCompact } = useBreakpoint()
 const live = computed(() => sessions.filter((s) => s.status === 'live'))
 const recent = computed(() => eventStream.slice().reverse().slice(0, 6))
 
@@ -36,9 +38,12 @@ function bgFor(status: Tone): string {
   return status === 'crit' ? S.critBg : status === 'warn' ? S.warnBg : L.panel
 }
 
-const page: CSSProperties = { padding: '26px 28px', maxWidth: '1280px', margin: '0 auto' }
+const page = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '26px 28px',
+  maxWidth: '1280px',
+  margin: '0 auto',
+}))
 const statCard: CSSProperties = {
-  flex: 1,
   minWidth: 0,
   padding: '15px 16px',
   background: L.panel,
@@ -46,7 +51,23 @@ const statCard: CSSProperties = {
   borderRadius: '12px',
   boxShadow: '0 1px 2px rgba(16,24,40,0.04)',
 }
-const grid: CSSProperties = { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px', alignItems: 'start' }
+const statRow = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile.value ? '1fr 1fr' : 'repeat(4, 1fr)',
+  gap: isMobile.value ? '10px' : '14px',
+  marginBottom: '16px',
+}))
+const grid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1.5fr 1fr',
+  gap: '16px',
+  alignItems: 'start',
+}))
+const systemsGrid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile.value ? 'repeat(2, 1fr)' : isCompact.value ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)',
+  gap: '10px',
+}))
 const colStack: CSSProperties = { display: 'flex', flexDirection: 'column', gap: '16px' }
 const linkAction: CSSProperties = { fontFamily: L.body, fontSize: '12.5px', fontWeight: 600, color: S.accentText, cursor: 'pointer' }
 const aiTag: CSSProperties = { fontFamily: L.mono, fontSize: '9px', fontWeight: 600, color: S.accentText, background: S.accentBg, border: `1px solid ${S.accentBorder}`, borderRadius: '4px', padding: '2px 6px' }
@@ -64,7 +85,7 @@ const aiTag: CSSProperties = { fontFamily: L.mono, fontSize: '9px', fontWeight: 
     </PageHead>
 
     <!-- stat row -->
-    <div :style="{ display: 'flex', gap: '14px', marginBottom: '16px' }">
+    <div :style="statRow">
       <div v-for="st in stats" :key="st.label" :style="statCard">
         <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }">
           <SecLabel>{{ st.label }}</SecLabel>
@@ -108,7 +129,7 @@ const aiTag: CSSProperties = { fontFamily: L.mono, fontSize: '9px', fontWeight: 
 
         <DCard title="Systems health" :body-style="{ padding: '14px' }">
           <template #action><span :style="linkAction" @click="router.push('/systems')">Inventory →</span></template>
-          <div :style="{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }">
+          <div :style="systemsGrid">
             <div
               v-for="sy in systems"
               :key="sy.id"

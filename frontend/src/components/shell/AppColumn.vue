@@ -5,7 +5,7 @@ import { L } from '@/design/tokens'
 import TopBar, { type Crumb } from './TopBar.vue'
 
 const props = defineProps<{ crumbs: Crumb[]; full: boolean }>()
-const emit = defineEmits<{ 'open-palette': [] }>()
+const emit = defineEmits<{ 'open-palette': []; 'open-nav': [] }>()
 
 const column: CSSProperties = {
   flex: 1,
@@ -26,7 +26,7 @@ const main = computed<CSSProperties>(() => ({
 
 <template>
   <div :style="column">
-    <TopBar :crumbs="crumbs" @open-palette="emit('open-palette')" />
+    <TopBar :crumbs="crumbs" @open-palette="emit('open-palette')" @open-nav="emit('open-nav')" />
     <div class="dock-main" :style="main">
       <RouterView />
     </div>

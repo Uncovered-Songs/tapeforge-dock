@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S } from '@/dock/status'
 import { crewThread, systems, sessions, knowledge, type CrewTurn } from '@/dock/data'
 import Pill from '@/components/kit/Pill.vue'
@@ -10,6 +11,37 @@ import SecLabel from '@/components/kit/SecLabel.vue'
 import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
+const { isMobile, isCompact } = useBreakpoint()
+
+/* Horizontal padding shrinks on narrow viewports to avoid overflow. */
+const padX = computed(() => (isMobile.value ? '14px' : '26px'))
+
+const headerStyle = computed<CSSProperties>(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '11px',
+  padding: `16px ${padX.value}`,
+  borderBottom: `1px solid ${L.border}`,
+}))
+const threadScrollStyle = computed<CSSProperties>(() => ({
+  flex: 1,
+  minHeight: 0,
+  overflowY: 'auto',
+  padding: `24px ${padX.value}`,
+}))
+const composerStyle = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '12px 14px 16px' : '14px 26px 20px',
+  borderTop: `1px solid ${L.border}`,
+}))
+/* Agent-mesh sidebar: hidden on compact (tablet + mobile), narrower otherwise stays as-is on desktop. */
+const meshStyle = computed<CSSProperties>(() => ({
+  width: '264px',
+  flex: '0 0 264px',
+  borderLeft: `1px solid ${L.border}`,
+  background: L.pageBg,
+  padding: '18px 16px',
+  overflowY: 'auto',
+}))
 
 /* Map a crew nav target (from cites / mesh / sources) to a router path. */
 function go(to: string): void {
@@ -92,7 +124,7 @@ const draft = ref('')
     <div :style="{ display: 'flex', flex: 1, width: '100%', minHeight: 0 }">
       <!-- conversation -->
       <div :style="{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', minHeight: 0 }">
-        <div :style="{ display: 'flex', alignItems: 'center', gap: '11px', padding: '16px 26px', borderBottom: `1px solid ${L.border}` }">
+        <div :style="headerStyle">
           <span :style="{ width: '32px', height: '32px', borderRadius: '9px', background: S.accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }"><Icon name="spark" :size="17" fill="cur" /></span>
           <div>
             <div :style="{ fontFamily: L.body, fontSize: '15px', fontWeight: 700, color: L.text }">Crew</div>
@@ -103,7 +135,7 @@ const draft = ref('')
         </div>
 
         <!-- thread -->
-        <div :style="{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '24px 26px' }">
+        <div :style="threadScrollStyle">
           <div :style="{ maxWidth: '760px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }">
             <template v-for="(m, i) in thread" :key="i">
               <div
@@ -150,7 +182,7 @@ const draft = ref('')
         </div>
 
         <!-- composer -->
-        <div :style="{ padding: '14px 26px 20px', borderTop: `1px solid ${L.border}` }">
+        <div :style="composerStyle">
           <div :style="{ maxWidth: '760px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '11px', border: `1px solid ${L.border2}`, background: L.panel, boxShadow: '0 1px 2px rgba(16,24,40,0.04)' }">
             <Icon name="spark" :size="16" :style="{ color: L.text3 }" />
             <input
@@ -159,14 +191,14 @@ const draft = ref('')
               placeholder="Ask about systems, sessions, topology, networking…"
               :style="{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontFamily: L.body, fontSize: '14px', color: L.text }"
             />
-            <span :style="{ fontFamily: L.mono, fontSize: '9.5px', color: L.text3, border: `1px solid ${L.border}`, borderRadius: '5px', padding: '3px 7px' }">cites sources</span>
+            <span v-if="!isMobile" :style="{ fontFamily: L.mono, fontSize: '9.5px', color: L.text3, border: `1px solid ${L.border}`, borderRadius: '5px', padding: '3px 7px' }">cites sources</span>
             <Btn primary sm icon="arrowR">Ask</Btn>
           </div>
         </div>
       </div>
 
-      <!-- agent mesh sidebar — live orchestration ("working") state -->
-      <div :style="{ width: '264px', flex: '0 0 264px', borderLeft: `1px solid ${L.border}`, background: L.pageBg, padding: '18px 16px', overflowY: 'auto' }">
+      <!-- agent mesh sidebar — live orchestration ("working") state. Hidden on compact (tablet + mobile): no room beside the thread. -->
+      <div v-if="!isCompact" :style="meshStyle">
         <div :style="{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }">
           <SecLabel>Agent mesh</SecLabel>
           <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: L.mono, fontSize: '9px', fontWeight: 600, letterSpacing: '0.06em', color: S.accentText, background: S.accentBg, border: `1px solid ${S.accentBorder}`, borderRadius: '5px', padding: '2px 7px' }">

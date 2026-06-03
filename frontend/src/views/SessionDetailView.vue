@@ -2,6 +2,7 @@
 import { computed, type CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { L, TWO } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, TONE, type Tone } from '@/dock/status'
 import { sessions, systems, eventStream, configChanges, type DockSession, type DockSystem, type DockEvent } from '@/dock/data'
 import Pill from '@/components/kit/Pill.vue'
@@ -12,6 +13,7 @@ import Btn from '@/components/kit/Btn.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { isMobile, isCompact } = useBreakpoint()
 
 const STATUS_TONE: Record<DockSession['status'], Tone> = { live: 'crit', review: 'warn', done: 'idle' }
 const STATUS_LABEL: Record<DockSession['status'], string> = { live: 'LIVE', review: 'IN REVIEW', done: 'COMPLETE' }
@@ -116,12 +118,22 @@ const timelineLegend: Array<[Tone, string]> = [
   ['warn', 'warn/crit'],
 ]
 
-const page: CSSProperties = { padding: '24px 28px', maxWidth: '1320px', margin: '0 auto' }
-const grid: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', alignItems: 'start' }
+const page = computed<CSSProperties>(() => ({
+  padding: isMobile.value ? '18px 14px' : '24px 28px',
+  maxWidth: '1320px',
+  margin: '0 auto',
+}))
+const grid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 1fr 1fr',
+  gap: '16px',
+  alignItems: 'start',
+}))
 
 function panelStyle(span?: number): CSSProperties {
   return {
-    gridColumn: span ? `span ${span}` : 'auto',
+    // On a single-column (compact) grid there is no column 3 to span, so collapse to auto.
+    gridColumn: span && !isCompact.value ? `span ${span}` : 'auto',
     background: L.panel,
     border: `1px solid ${L.border}`,
     borderRadius: '12px',
@@ -139,6 +151,21 @@ const panelHead: CSSProperties = {
 }
 const panelTitle: CSSProperties = { fontFamily: L.body, fontSize: '13px', fontWeight: 700, color: L.text }
 const panelBody: CSSProperties = { padding: '16px', flex: 1 }
+// Header: row on desktop, stacked (title above actions) on mobile so the action buttons don't squeeze.
+const headerRow = computed<CSSProperties>(() => ({
+  display: 'flex',
+  alignItems: isMobile.value ? 'stretch' : 'flex-start',
+  flexDirection: isMobile.value ? 'column' : 'row',
+  justifyContent: 'space-between',
+  gap: isMobile.value ? '14px' : '20px',
+  marginBottom: '20px',
+}))
+// Postmortem "What/Impact/Resolution" columns stack on compact.
+const postmortemGrid = computed<CSSProperties>(() => ({
+  display: 'grid',
+  gridTemplateColumns: isCompact.value ? '1fr' : '1fr 1fr 1fr',
+  gap: isCompact.value ? '16px' : '18px',
+}))
 </script>
 
 <template>
@@ -151,14 +178,14 @@ const panelBody: CSSProperties = { padding: '16px', flex: 1 }
 
   <div v-else :style="page">
     <!-- header -->
-    <div :style="{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '20px', marginBottom: '20px' }">
+    <div :style="headerRow">
       <div>
         <div :style="{ display: 'flex', alignItems: 'center', gap: '11px', marginBottom: '8px' }">
           <Pill :tone="STATUS_TONE[s.status]">{{ STATUS_LABEL[s.status] }}</Pill>
           <span :style="{ fontFamily: L.mono, fontSize: '11px', color: L.text3 }">{{ s.id }}</span>
         </div>
         <h1 :style="{ margin: 0, fontFamily: L.body, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em', color: L.text }">{{ s.name }}</h1>
-        <div :style="{ display: 'flex', gap: '16px', marginTop: '9px', fontFamily: L.mono, fontSize: '11px', color: L.text2 }">
+        <div :style="{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: '9px', fontFamily: L.mono, fontSize: '11px', color: L.text2 }">
           <span>{{ s.type }}</span><span>· {{ s.loc }}</span><span>· {{ s.date }} {{ s.start }}</span><span>· {{ s.dur === 'live' ? 'in progress' : s.dur }}</span><span>· {{ s.engineer }}</span>
         </div>
       </div>
@@ -223,7 +250,7 @@ const panelBody: CSSProperties = { padding: '16px', flex: 1 }
           <SecLabel>20:11 · auto</SecLabel>
         </div>
         <div :style="panelBody">
-          <svg :viewBox="`0 0 ${W} ${H}`" width="100%" :style="{ display: 'block' }">
+          <svg :viewBox="`0 0 ${W} ${H}`" width="100%" :style="{ display: 'block', maxWidth: '520px', margin: '0 auto' }">
             <line
               v-for="(p, i) in topo"
               :key="`l${i}`"
@@ -366,7 +393,7 @@ const panelBody: CSSProperties = { padding: '16px', flex: 1 }
           <Pill tone="warn">1 action item</Pill>
         </div>
         <div :style="panelBody">
-          <div :style="{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '18px' }">
+          <div :style="postmortemGrid">
             <div v-for="(c, i) in postmortem" :key="i">
               <SecLabel :style="{ marginBottom: '8px' }">{{ c[0] }}</SecLabel>
               <p :style="{ margin: 0, fontFamily: L.body, fontSize: '12.5px', lineHeight: 1.55, color: L.text2 }">{{ c[1] }}</p>

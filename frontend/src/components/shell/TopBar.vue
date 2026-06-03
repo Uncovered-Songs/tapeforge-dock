@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { CSSProperties } from 'vue'
+import { computed, type CSSProperties } from 'vue'
 import { RouterLink } from 'vue-router'
 import { L } from '@/design/tokens'
 import { S } from '@/dock/status'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import Icon from '@/components/kit/Icon.vue'
 
 export interface Crumb {
@@ -10,18 +11,36 @@ export interface Crumb {
   to?: string
 }
 
-defineProps<{ crumbs: Crumb[] }>()
-const emit = defineEmits<{ 'open-palette': [] }>()
+const props = defineProps<{ crumbs: Crumb[] }>()
+const emit = defineEmits<{ 'open-palette': []; 'open-nav': [] }>()
 
-const bar: CSSProperties = {
+const { isMobile, isCompact } = useBreakpoint()
+
+// On phones, only show the last (current) crumb to save width.
+const shownCrumbs = computed(() => (isMobile.value ? props.crumbs.slice(-1) : props.crumbs))
+
+const bar = computed<CSSProperties>(() => ({
   height: '64px',
   flex: '0 0 64px',
   background: L.pageBg,
   borderBottom: `1px solid ${L.border}`,
   display: 'flex',
   alignItems: 'center',
-  gap: '14px',
-  padding: '0 22px',
+  gap: isMobile.value ? '10px' : '14px',
+  padding: isMobile.value ? '0 14px' : '0 22px',
+}))
+const iconBtn: CSSProperties = {
+  width: '34px',
+  height: '34px',
+  borderRadius: '8px',
+  border: `1px solid ${L.border}`,
+  background: L.panel,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: L.text2,
+  cursor: 'pointer',
+  flex: '0 0 auto',
 }
 const search: CSSProperties = {
   display: 'flex',
@@ -42,18 +61,6 @@ const kbd: CSSProperties = {
   borderRadius: '4px',
   padding: '1px 5px',
 }
-const iconBtn: CSSProperties = {
-  width: '30px',
-  height: '30px',
-  borderRadius: '8px',
-  border: `1px solid ${L.border}`,
-  background: L.panel,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  color: L.text2,
-  cursor: 'pointer',
-}
 const avatar: CSSProperties = {
   width: '30px',
   height: '30px',
@@ -66,6 +73,7 @@ const avatar: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  flex: '0 0 auto',
 }
 
 function crumbStyle(last: boolean, link: boolean): CSSProperties {
@@ -83,23 +91,32 @@ function crumbStyle(last: boolean, link: boolean): CSSProperties {
 
 <template>
   <div :style="bar">
-    <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }">
-      <template v-for="(c, i) in crumbs" :key="i">
+    <!-- hamburger (compact only) -->
+    <div v-if="isCompact" :style="iconBtn" aria-label="Open navigation" @click="emit('open-nav')">
+      <Icon name="sessions" :size="16" />
+    </div>
+
+    <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }">
+      <template v-for="(c, i) in shownCrumbs" :key="i">
         <span v-if="i > 0" :style="{ color: L.text3, display: 'flex' }"><Icon name="chevron" :size="13" /></span>
-        <RouterLink v-if="c.to" :to="c.to" :style="crumbStyle(i === crumbs.length - 1, true)">{{ c.label }}</RouterLink>
-        <span v-else :style="crumbStyle(i === crumbs.length - 1, false)">{{ c.label }}</span>
+        <RouterLink v-if="c.to" :to="c.to" :style="crumbStyle(i === shownCrumbs.length - 1, true)">{{ c.label }}</RouterLink>
+        <span v-else :style="crumbStyle(i === shownCrumbs.length - 1, false)">{{ c.label }}</span>
       </template>
     </div>
 
     <div :style="{ flex: 1 }" />
 
-    <div :style="search" @click="emit('open-palette')">
+    <!-- search: full box on larger screens, icon on phones (both open the palette) -->
+    <div v-if="!isMobile" :style="search" @click="emit('open-palette')">
       <Icon name="search" :size="14" />
       <span :style="{ fontFamily: L.body, fontSize: '13px', flex: 1 }">Search or ask Crew…</span>
       <span :style="kbd">⌘K</span>
     </div>
+    <div v-else :style="iconBtn" aria-label="Search" @click="emit('open-palette')">
+      <Icon name="search" :size="16" />
+    </div>
 
-    <div :style="iconBtn"><Icon name="bell" :size="15" /></div>
+    <div v-if="!isMobile" :style="iconBtn"><Icon name="bell" :size="15" /></div>
     <div :style="avatar">JC</div>
   </div>
 </template>

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, type CSSProperties } from 'vue'
+import { computed, ref, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S } from '@/dock/status'
 import { docTree } from '@/dock/data'
 import Pill from '@/components/kit/Pill.vue'
@@ -10,8 +11,11 @@ import SecLabel from '@/components/kit/SecLabel.vue'
 import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
+const { isMobile, isTablet } = useBreakpoint()
 
 const active = ref('PTP & clocking')
+// Mobile: doc tree is collapsed into a disclosure, hidden by default.
+const treeOpen = ref(false)
 
 const sections: [string, string][] = [
   [
@@ -28,21 +32,37 @@ const sections: [string, string][] = [
   ],
 ]
 
-const root: CSSProperties = {
+const root = computed<CSSProperties>(() => ({
   flex: 1,
   minWidth: 0,
   display: 'flex',
+  // On mobile the tree disclosure sits above the scrolling content pane.
+  flexDirection: isMobile.value ? 'column' : 'row',
   minHeight: 0,
   height: '100%',
-}
-const tree: CSSProperties = {
-  width: '248px',
-  flex: '0 0 248px',
-  borderRight: `1px solid ${L.border}`,
-  background: L.pageBg,
-  overflowY: 'auto',
-  padding: '18px 14px',
-}
+}))
+const tree = computed<CSSProperties>(() => {
+  if (isMobile.value) {
+    return {
+      width: '100%',
+      flex: '0 0 auto',
+      maxHeight: '45%',
+      borderBottom: `1px solid ${L.border}`,
+      background: L.pageBg,
+      overflowY: 'auto',
+      padding: '12px 14px',
+    }
+  }
+  const w = isTablet.value ? '188px' : '248px'
+  return {
+    width: w,
+    flex: `0 0 ${w}`,
+    borderRight: `1px solid ${L.border}`,
+    background: L.pageBg,
+    overflowY: 'auto',
+    padding: '18px 14px',
+  }
+})
 const treeSearch: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -53,12 +73,28 @@ const treeSearch: CSSProperties = {
   background: L.panel,
   marginBottom: '14px',
 }
-const body: CSSProperties = {
+const body = computed<CSSProperties>(() => ({
   flex: 1,
   minWidth: 0,
   overflowY: 'auto',
-  padding: '30px 40px',
-}
+  padding: isMobile.value ? '20px 16px' : '30px 40px',
+}))
+const disclosure = computed<CSSProperties>(() => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+  width: '100%',
+  padding: '10px 12px',
+  marginBottom: treeOpen.value ? '12px' : '0',
+  borderRadius: '8px',
+  border: `1px solid ${L.border}`,
+  background: L.panel,
+  cursor: 'pointer',
+  fontFamily: L.body,
+  fontSize: '12.5px',
+  fontWeight: 600,
+  color: L.text2,
+}))
 const article: CSSProperties = { maxWidth: '720px', margin: '0 auto' }
 const crumbs: CSSProperties = {
   display: 'flex',
@@ -120,14 +156,30 @@ function treeItemStyle(it: string): CSSProperties {
   <div :style="root">
     <!-- doc tree -->
     <div :style="tree">
-      <div :style="treeSearch">
-        <Icon name="search" :size="13" :style="{ color: L.text3 }" />
-        <span :style="{ fontFamily: L.body, fontSize: '12.5px', color: L.text3 }">Search docs…</span>
+      <!-- mobile-only Contents disclosure toggle -->
+      <div v-if="isMobile" :style="disclosure" @click="treeOpen = !treeOpen">
+        <Icon name="docs" :size="14" :style="{ color: L.text3 }" />
+        <span>Contents</span>
+        <span :style="{ flex: 1 }" />
+        <span :style="{ color: L.text3, fontFamily: L.mono, fontSize: '11px' }">{{ active }}</span>
+        <Icon name="chevron" :size="12" :style="{ color: L.text3 }" />
       </div>
-      <div v-for="g in docTree" :key="g.group" :style="{ marginBottom: '16px' }">
-        <SecLabel :style="{ marginBottom: '8px', paddingLeft: '6px' }">{{ g.group }}</SecLabel>
-        <div v-for="it in g.items" :key="it" :style="treeItemStyle(it)" @click="active = it">{{ it }}</div>
-      </div>
+
+      <template v-if="!isMobile || treeOpen">
+        <div :style="treeSearch">
+          <Icon name="search" :size="13" :style="{ color: L.text3 }" />
+          <span :style="{ fontFamily: L.body, fontSize: '12.5px', color: L.text3 }">Search docs…</span>
+        </div>
+        <div v-for="g in docTree" :key="g.group" :style="{ marginBottom: '16px' }">
+          <SecLabel :style="{ marginBottom: '8px', paddingLeft: '6px' }">{{ g.group }}</SecLabel>
+          <div
+            v-for="it in g.items"
+            :key="it"
+            :style="treeItemStyle(it)"
+            @click="active = it; treeOpen = false"
+          >{{ it }}</div>
+        </div>
+      </template>
     </div>
 
     <!-- doc body -->

@@ -8,6 +8,8 @@ import Wordmark from '@/components/kit/Wordmark.vue'
 import Icon from '@/components/kit/Icon.vue'
 import DockDot from '@/components/kit/DockDot.vue'
 
+const emit = defineEmits<{ navigate: [] }>()
+
 interface NavItem {
   id: string
   label: string
@@ -137,7 +139,7 @@ const navList = computed(() => NAV.map((n) => ({ ...n, on: active(n.id) })))
     </div>
 
     <nav :style="navWrap">
-      <RouterLink v-for="n in navList" :key="n.id" :to="`/${n.id}`" :style="itemStyle(n.on)">
+      <RouterLink v-for="n in navList" :key="n.id" :to="`/${n.id}`" :style="itemStyle(n.on)" @click="emit('navigate')">
         <span :style="{ color: n.on ? S.accent : L.text3, display: 'flex' }"><Icon :name="n.icon" :size="16" /></span>
         <span :style="{ fontFamily: L.body, fontSize: '13px', fontWeight: n.on ? 700 : 500, flex: 1 }">{{ n.label }}</span>
         <span v-if="n.accent" :style="aiTag">AI</span>

@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import type { CSSProperties } from 'vue'
+import { computed, type CSSProperties } from 'vue'
 import { L } from '@/design/tokens'
+import { useBreakpoint } from '@/composables/useBreakpoint'
 
-/* Page title + optional subtitle, with a `right` slot for actions. */
+/* Page title + optional subtitle, with a `right` slot for actions.
+   Stacks (title over actions) on phones. */
 defineProps<{ title: string; sub?: string }>()
 
-const wrap: CSSProperties = {
+const { isMobile } = useBreakpoint()
+
+const wrap = computed<CSSProperties>(() => ({
   display: 'flex',
-  alignItems: 'flex-end',
+  flexDirection: isMobile.value ? 'column' : 'row',
+  alignItems: isMobile.value ? 'flex-start' : 'flex-end',
   justifyContent: 'space-between',
-  gap: '20px',
+  gap: isMobile.value ? '12px' : '20px',
   marginBottom: '22px',
-}
-const titleStyle: CSSProperties = {
+}))
+const titleStyle = computed<CSSProperties>(() => ({
   margin: '0',
   fontFamily: L.body,
-  fontSize: '24px',
+  fontSize: isMobile.value ? '21px' : '24px',
   fontWeight: 700,
   letterSpacing: '-0.02em',
   color: L.text,
-}
+}))
 const subStyle: CSSProperties = {
   margin: '6px 0 0',
   fontFamily: L.body,
