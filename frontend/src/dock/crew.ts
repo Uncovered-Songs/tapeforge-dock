@@ -2,7 +2,7 @@
    Ported from dock-companion.jsx (SCENARIOS, suggestionsFor, seededReply,
    sectionLabel, the navigation-narration map). */
 import type { Tone } from './status'
-import { sessions, systems } from './data'
+import { useDockStore } from '@/stores/dock'
 
 /** App location, decoupled from the URL: a section + optional sub id. */
 export interface DockRoute {
@@ -44,7 +44,7 @@ const SECTION_LABEL: Record<string, string> = {
 
 export function sectionLabel(route: DockRoute): string {
   if (route.section === 'sessions' && route.sub) {
-    const s = sessions.find((x) => x.id === route.sub)
+    const s = useDockStore().sessions.find((x) => x.id === route.sub)
     return s ? s.id : 'Session'
   }
   return SECTION_LABEL[route.section] ?? 'DOCK'
@@ -96,7 +96,7 @@ export function seededReply(route: DockRoute): string {
   const s = route.section
   if (s === 'diagnostics') return 'Clock offset and jitter co-occur on PORT-Stage — 3 failovers in 7 days, all at Riverside/Civic. Latency is nominal fleet-wide. Want me to open the worst session?'
   if (s === 'systems' && route.sub) {
-    const sy = systems.find((x) => x.id === route.sub)
+    const sy = useDockStore().systems.find((x) => x.id === route.sub)
     return sy ? `${sy.name} is ${sy.status === 'ok' ? 'healthy' : sy.status === 'warn' ? 'degraded' : 'offline'} — ${sy.note}.` : ''
   }
   if (s === 'systems') return 'SCOPE-Broadcast is offline (no PTP lock since 18:02). DESK-Studio-A is one minor version behind. Everything else is healthy.'
@@ -144,6 +144,7 @@ export const SCENARIOS: Scenario[] = [
 
 /** Command-palette entries: static sections + a few sessions/systems. */
 export function paletteItems(): { label: string; hint?: string; to: NavTarget; icon: string }[] {
+  const { sessions, systems } = useDockStore()
   return [
     { label: 'Overview', to: ['overview'], icon: 'overview' },
     { label: 'Sessions', to: ['sessions'], icon: 'sessions' },

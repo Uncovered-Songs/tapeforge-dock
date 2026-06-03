@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { L, TWO } from '@/design/tokens'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, TONE, type Tone } from '@/dock/status'
-import { sessions, systems, eventStream, configChanges, type DockSession, type DockSystem, type DockEvent } from '@/dock/data'
+import { type DockSession, type DockSystem, type DockEvent } from '@/dock/data'
+import { useDockStore } from '@/stores/dock'
 import Pill from '@/components/kit/Pill.vue'
 import DockDot from '@/components/kit/DockDot.vue'
 import Icon from '@/components/kit/Icon.vue'
@@ -14,6 +15,7 @@ import Btn from '@/components/kit/Btn.vue'
 const route = useRoute()
 const router = useRouter()
 const { isMobile, isCompact } = useBreakpoint()
+const { sessions, systems, eventStream, configChanges } = useDockStore()
 
 const STATUS_TONE: Record<DockSession['status'], Tone> = { live: 'crit', review: 'warn', done: 'idle' }
 const STATUS_LABEL: Record<DockSession['status'], string> = { live: 'LIVE', review: 'IN REVIEW', done: 'COMPLETE' }

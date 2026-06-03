@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch, type CSSProperties } from 'vue'
+import { computed, onMounted, ref, watch, type CSSProperties } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { L } from '@/design/tokens'
 import { S } from '@/dock/status'
 import { useBreakpoint } from '@/composables/useBreakpoint'
+import { useDockStore } from '@/stores/dock'
 import AppSidebar from '@/components/shell/AppSidebar.vue'
 import AppColumn from '@/components/shell/AppColumn.vue'
 import CrewRail from '@/components/shell/CrewRail.vue'
 import CrewPanel from '@/components/shell/CrewPanel.vue'
 import CommandPalette from '@/components/shell/CommandPalette.vue'
+import Wordmark from '@/components/kit/Wordmark.vue'
 import Icon from '@/components/kit/Icon.vue'
 import { type Crumb } from '@/components/shell/TopBar.vue'
 import { narrate, type DockRoute } from '@/dock/crew'
@@ -15,6 +18,12 @@ import { narrate, type DockRoute } from '@/dock/crew'
 const route = useRoute()
 const router = useRouter()
 const { isDesktop } = useBreakpoint()
+
+// Load the operational dataset once, before rendering the console.
+const store = useDockStore()
+onMounted(() => {
+  if (!store.loaded) store.load()
+})
 
 // Desktop Crew rail state.
 const railExpanded = ref(true)
@@ -125,11 +134,62 @@ const fab: CSSProperties = {
   cursor: 'pointer',
   boxShadow: '0 8px 24px rgba(60,122,111,0.4)',
 }
+
+// Loading / error gate (shown until the dataset is in).
+const gate: CSSProperties = {
+  height: '100vh',
+  width: '100vw',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '18px',
+  background: L.pageBg,
+}
+const spinner: CSSProperties = {
+  width: '30px',
+  height: '30px',
+  borderRadius: '50%',
+  border: `3px solid ${L.border}`,
+  borderTopColor: S.accent,
+  animation: 'dock-spin 0.8s linear infinite',
+}
+const gateMsg: CSSProperties = {
+  margin: 0,
+  fontFamily: L.mono,
+  fontSize: '12px',
+  letterSpacing: '0.06em',
+  color: L.text3,
+}
+const retryBtn: CSSProperties = {
+  fontFamily: L.body,
+  fontSize: '13px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  padding: '8px 16px',
+  borderRadius: '8px',
+  border: `1px solid ${S.accent}`,
+  background: S.accent,
+  color: '#fff',
+}
 </script>
 
 <template>
+  <!-- ===================== Loading / error gate ===================== -->
+  <div v-if="!store.loaded" :style="gate">
+    <template v-if="store.error">
+      <Wordmark :height="30" :color="L.text" />
+      <p :style="gateMsg">{{ store.error }}</p>
+      <button :style="retryBtn" @click="store.load()">Retry</button>
+    </template>
+    <template v-else>
+      <div :style="spinner" />
+      <p :style="gateMsg">Loading Dock…</p>
+    </template>
+  </div>
+
   <!-- ===================== Desktop ===================== -->
-  <div v-if="isDesktop" :style="app">
+  <div v-else-if="isDesktop" :style="app">
     <template v-if="cover && !onCrew">
       <CrewRail
         :route="dockRoute"

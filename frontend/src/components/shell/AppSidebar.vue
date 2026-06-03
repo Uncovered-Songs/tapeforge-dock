@@ -3,12 +3,14 @@ import { computed, type CSSProperties } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { L } from '@/design/tokens'
 import { S } from '@/dock/status'
-import { sessions, systems, knowledge } from '@/dock/data'
+import { useDockStore } from '@/stores/dock'
 import Wordmark from '@/components/kit/Wordmark.vue'
 import Icon from '@/components/kit/Icon.vue'
 import DockDot from '@/components/kit/DockDot.vue'
 
 const emit = defineEmits<{ navigate: [] }>()
+
+const { sessions, systems, knowledge } = useDockStore()
 
 interface NavItem {
   id: string

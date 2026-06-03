@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S } from '@/dock/status'
-import { docTree } from '@/dock/data'
+import { useDockStore } from '@/stores/dock'
 import Pill from '@/components/kit/Pill.vue'
 import Icon from '@/components/kit/Icon.vue'
 import SecLabel from '@/components/kit/SecLabel.vue'
@@ -12,6 +12,7 @@ import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
 const { isMobile, isTablet } = useBreakpoint()
+const { docTree } = useDockStore()
 
 const active = ref('PTP & clocking')
 // Mobile: doc tree is collapsed into a disclosure, hidden by default.

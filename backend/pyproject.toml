@@ -1,0 +1,16 @@
+[project]
+name = "tapeforge-dock-backend"
+version = "0.1.0"
+description = "FastAPI backend for TapeForge Dock — the operating platform API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.136.3",
+    "pydantic-settings>=2.14.1",
+    "sqlmodel>=0.0.38",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.0",
+]

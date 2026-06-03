@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S, type Tone } from '@/dock/status'
-import { sessions, systems, eventStream, crewRecs } from '@/dock/data'
+import { useDockStore } from '@/stores/dock'
 import DCard from '@/components/kit/DCard.vue'
 import Pill from '@/components/kit/Pill.vue'
 import DockDot from '@/components/kit/DockDot.vue'
@@ -18,6 +18,7 @@ import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
 const { isMobile, isCompact } = useBreakpoint()
+const { sessions, systems, eventStream, crewRecs } = useDockStore()
 const live = computed(() => sessions.filter((s) => s.status === 'live'))
 const recent = computed(() => eventStream.slice().reverse().slice(0, 6))
 

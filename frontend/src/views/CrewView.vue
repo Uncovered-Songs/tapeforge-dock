@@ -4,7 +4,8 @@ import { useRouter } from 'vue-router'
 import { L } from '@/design/tokens'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { S } from '@/dock/status'
-import { crewThread, systems, sessions, knowledge, type CrewTurn } from '@/dock/data'
+import { type CrewTurn } from '@/dock/data'
+import { useDockStore } from '@/stores/dock'
 import Pill from '@/components/kit/Pill.vue'
 import Icon from '@/components/kit/Icon.vue'
 import SecLabel from '@/components/kit/SecLabel.vue'
@@ -12,6 +13,7 @@ import Btn from '@/components/kit/Btn.vue'
 
 const router = useRouter()
 const { isMobile, isCompact } = useBreakpoint()
+const { crewThread, systems, sessions, knowledge } = useDockStore()
 
 /* Horizontal padding shrinks on narrow viewports to avoid overflow. */
 const padX = computed(() => (isMobile.value ? '14px' : '26px'))
