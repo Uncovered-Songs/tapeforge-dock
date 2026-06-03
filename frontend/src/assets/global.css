@@ -1,0 +1,72 @@
+/* global.css — base document styling for TapeForge Dock, ported from the
+   design's DOCK.html <style> block. The app is a full-viewport shell; the
+   content column (.dock-main) manages its own scroll. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #f5f6f8;
+  color: #2f343c;
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(60, 122, 111, 0.18);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d2d7de;
+  border-radius: 6px;
+  border: 3px solid #f5f6f8;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dock-main::-webkit-scrollbar-thumb {
+  border-color: #fff;
+}
+
+@keyframes dock-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes dock-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes dock-grow {
+  from {
+    width: 0;
+  }
+}
