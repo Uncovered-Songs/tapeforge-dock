@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # CORS — origins allowed to call the API (the Dock Vue dev server by default).
     cors_origins: list[str] = ["http://localhost:5174", "http://127.0.0.1:5174"]
 
+    # Crew assistant (Claude API). Reads ANTHROPIC_API_KEY from the environment;
+    # when unset, the /crew/chat endpoint returns 503.
+    anthropic_api_key: str | None = None
+    crew_model: str = "claude-sonnet-4-6"
+
 
 @lru_cache
 def get_settings() -> Settings:

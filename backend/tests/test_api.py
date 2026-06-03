@@ -48,6 +48,28 @@ def test_list_systems(client: TestClient) -> None:
     assert {"id", "kind", "name", "status", "cpu", "note"} <= body[0].keys()
 
 
+def test_crew_chat_requires_api_key(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # With no ANTHROPIC_API_KEY configured, Crew is locked.
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "anthropic_api_key", None)
+    r = client.post("/api/v1/crew/chat", json={"messages": [{"role": "user", "content": "hi"}]})
+    assert r.status_code == 503
+
+
+def test_crew_context_builds_from_db(client: TestClient) -> None:
+    # The grounding context should reflect the seeded environment.
+    import app.core.db as db
+    from sqlmodel import Session
+    from app.crew import _data_context
+
+    with Session(db.engine) as s:
+        ctx = _data_context(s)
+    assert "SCOPE-Broadcast" in ctx
+    assert "S-2040" in ctx
+    assert "## Systems" in ctx
+
+
 def test_get_system_404(client: TestClient) -> None:
     assert client.get("/api/v1/systems/nope").status_code == 404
     assert client.get("/api/v1/systems/scope-bc").json()["status"] == "crit"
