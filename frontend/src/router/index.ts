@@ -43,7 +43,7 @@ const router = createRouter({
       meta: { label: 'Knowledge' },
     },
     {
-      path: '/docs',
+      path: '/docs/:slug(.*)?',
       name: 'docs',
       component: () => import('../views/DocumentationView.vue'),
       meta: { label: 'Documentation', full: true },
@@ -59,6 +59,8 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
+  // DocumentationView sets a per-page title itself; don't clobber it here.
+  if (to.name === 'docs') return
   const label = to.meta.label as string | undefined
   document.title = label ? `${label} — TapeForge Dock` : DEFAULT_TITLE
 })
