@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, type CSSProperties } from 'vue'
+import { computed, nextTick, ref, type CSSProperties } from 'vue'
 import { L } from '@/design/tokens'
 import { S } from '@/dock/status'
 import { useBreakpoint } from '@/composables/useBreakpoint'
-import { SCENARIOS, sectionLabel, suggestionsFor, seededReply, type DockRoute, type Scenario } from '@/dock/crew'
+import { SCENARIOS, sectionLabel, suggestionsFor, type DockRoute, type Scenario } from '@/dock/crew'
+import { streamCrewChat, type CrewMessage } from '@/dock/api'
 import Icon from '@/components/kit/Icon.vue'
 import SecLabel from '@/components/kit/SecLabel.vue'
 import Btn from '@/components/kit/Btn.vue'
@@ -19,8 +20,8 @@ const emit = defineEmits<{ close: [] }>()
 
 const ctx = computed(() => sectionLabel(props.route))
 const sug = computed(() => suggestionsFor(props.route))
-const reply = computed(() => seededReply(props.route))
 
+// --- guided walkthroughs (scripted demos) ----------------------------------
 const scen = ref<string | null>(null)
 const step = ref(0)
 const active = computed<Scenario | null>(() => SCENARIOS.find((s) => s.id === scen.value) ?? null)
@@ -48,6 +49,63 @@ function endScenario() {
   step.value = 0
 }
 
+// --- live conversation (real AI) -------------------------------------------
+interface ChatTurn {
+  role: 'user' | 'crew'
+  text: string
+  streaming?: boolean
+  error?: boolean
+}
+const conversation = ref<ChatTurn[]>([])
+const draft = ref('')
+const sending = ref(false)
+const threadEl = ref<HTMLElement | null>(null)
+
+function scrollSoon(): void {
+  nextTick(() => {
+    if (threadEl.value) threadEl.value.scrollTop = threadEl.value.scrollHeight
+  })
+}
+
+async function send(text: string): Promise<void> {
+  const q = text.trim()
+  if (!q || sending.value) return
+  conversation.value.push({ role: 'user', text: q })
+  conversation.value.push({ role: 'crew', text: '', streaming: true })
+  const idx = conversation.value.length - 1
+  draft.value = ''
+  sending.value = true
+  scrollSoon()
+
+  const history: CrewMessage[] = conversation.value.slice(0, idx).map((m) => ({
+    role: m.role === 'user' ? 'user' : 'assistant',
+    content: m.text,
+  }))
+
+  // In the rail, Crew governs the app: navigate tool calls actually move it.
+  await streamCrewChat(history, props.route, {
+    onText: (t) => {
+      conversation.value[idx].text += t
+      scrollSoon()
+    },
+    onNavigate: (section, sub) => {
+      props.go(section, sub ?? undefined)
+    },
+    onError: (msg) => {
+      const c = conversation.value[idx]
+      if (!c.text) {
+        c.text = msg
+        c.error = true
+      }
+    },
+    onDone: () => {},
+  })
+
+  conversation.value[idx].streaming = false
+  sending.value = false
+  scrollSoon()
+}
+
 // Fills the width on phones (it lives in a full-screen overlay there);
 // fixed 520px beside the rail / in the tablet overlay otherwise.
 const root = computed<CSSProperties>(() => ({
@@ -73,6 +131,35 @@ const sparkBadge: CSSProperties = {
   justifyContent: 'center',
   flex: '0 0 auto',
   marginTop: '1px',
+}
+const crewText: CSSProperties = {
+  margin: 0,
+  fontFamily: L.body,
+  fontSize: '13px',
+  lineHeight: 1.55,
+  color: L.text,
+  whiteSpace: 'pre-wrap',
+}
+const userBubble: CSSProperties = {
+  alignSelf: 'flex-end',
+  maxWidth: '85%',
+  background: S.accent,
+  color: '#fff',
+  borderRadius: '12px 12px 4px 12px',
+  padding: '10px 13px 11px',
+  fontFamily: L.body,
+  fontSize: '13px',
+  lineHeight: 1.5,
+}
+const suggestChip: CSSProperties = {
+  fontFamily: L.body,
+  fontSize: '12.5px',
+  color: L.text2,
+  background: L.pageBg,
+  border: `1px solid ${L.border}`,
+  borderRadius: '8px',
+  padding: '8px 11px',
+  cursor: 'pointer',
 }
 </script>
 
@@ -104,13 +191,14 @@ const sparkBadge: CSSProperties = {
     <!-- working mesh strip -->
     <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderBottom: `1px solid ${L.border}` }">
       <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: L.mono, fontSize: '9px', fontWeight: 600, letterSpacing: '0.06em', color: S.accentText }">
-        <span :style="{ width: '6px', height: '6px', borderRadius: '3px', background: S.accent, animation: 'dock-pulse 1.1s ease-in-out infinite' }" />6 AGENTS
+        <span :style="{ width: '6px', height: '6px', borderRadius: '3px', background: S.accent, animation: 'dock-pulse 1.1s ease-in-out infinite' }" />{{ sending ? 'WORKING' : 'READY' }}
       </span>
-      <span :style="{ fontFamily: L.mono, fontSize: '9.5px', color: L.text3 }">· Networking ✓ · Topology ✓ · Troubleshooting working…</span>
+      <span :style="{ fontFamily: L.mono, fontSize: '9.5px', color: L.text3 }">· grounded in your live environment</span>
     </div>
 
     <!-- thread -->
-    <div :style="{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '13px' }">
+    <div ref="threadEl" :style="{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '13px' }">
+      <!-- guided walkthrough (scripted) -->
       <template v-if="active">
         <div :style="{ display: 'flex', alignItems: 'center', gap: '9px', padding: '8px 11px', borderRadius: '9px', background: S.accentBg, border: `1px solid ${S.accentBorder}` }">
           <Icon :name="active.icon" :size="14" :style="{ color: S.accentText }" />
@@ -127,17 +215,26 @@ const sparkBadge: CSSProperties = {
         </div>
       </template>
 
+      <!-- live conversation (real AI) -->
+      <template v-else-if="conversation.length">
+        <template v-for="(mm, i) in conversation" :key="i">
+          <div v-if="mm.role === 'user'" :style="userBubble">{{ mm.text }}</div>
+          <div v-else :style="{ display: 'flex', gap: '10px' }">
+            <span :style="sparkBadge"><Icon name="spark" :size="14" fill="cur" /></span>
+            <p :style="{ ...crewText, color: mm.error ? S.crit : L.text }">{{ mm.text
+              }}<span v-if="mm.streaming" :style="{ display: 'inline-block', width: '6px', height: '13px', marginLeft: '2px', background: S.accent, borderRadius: '1px', verticalAlign: 'text-bottom', animation: 'dock-pulse 1s ease-in-out infinite' }" /></p>
+          </div>
+        </template>
+      </template>
+
+      <!-- idle: greeting + suggestions -->
       <template v-else>
-        <div :style="{ alignSelf: 'flex-end', maxWidth: '85%', background: S.accent, color: '#fff', borderRadius: '12px 12px 4px 12px', padding: '10px 13px 11px', fontFamily: L.body, fontSize: '13px', lineHeight: 1.5 }">{{ sug[0].t }}</div>
         <div :style="{ display: 'flex', gap: '10px' }">
           <span :style="sparkBadge"><Icon name="spark" :size="14" fill="cur" /></span>
-          <div :style="{ minWidth: 0 }">
-            <p :style="{ margin: 0, fontFamily: L.body, fontSize: '13px', lineHeight: 1.55, color: L.text }">{{ reply }}</p>
-            <div :style="{ display: 'flex', flexWrap: 'wrap', gap: '7px', marginTop: '10px' }">
-              <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: L.body, fontSize: '12px', fontWeight: 600, color: '#fff', background: S.accent, borderRadius: '7px', padding: '6px 11px', cursor: 'pointer' }" @click="go(...sug[0].to)"><Icon name="arrowR" :size="12" />Take me there</span>
-              <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: L.mono, fontSize: '10px', color: S.accentText, background: L.panel, border: `1px solid ${L.border2}`, borderRadius: '7px', padding: '6px 9px', cursor: 'pointer' }" @click="go('crew')"><Icon name="link" :size="11" />sources</span>
-            </div>
-          </div>
+          <p :style="crewText">I can see your systems, sessions and diagnostics. Ask me anything — or pick a starting point and I’ll take you there.</p>
+        </div>
+        <div :style="{ display: 'flex', flexDirection: 'column', gap: '7px' }">
+          <span v-for="s in sug" :key="s.t" :style="suggestChip" @click="send(s.t)">{{ s.t }}</span>
         </div>
       </template>
     </div>
@@ -151,26 +248,41 @@ const sparkBadge: CSSProperties = {
         <Btn v-else sm primary icon="check" @click="endScenario">Done</Btn>
       </div>
       <template v-else>
-        <SecLabel :style="{ marginBottom: '9px' }">Guided walkthroughs</SecLabel>
-        <div :style="{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '12px' }">
-          <div
-            v-for="s in SCENARIOS"
-            :key="s.id"
-            :style="{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px', borderRadius: '9px', border: `1px solid ${L.border}`, background: L.pageBg, cursor: 'pointer' }"
-            @click="startScenario(s)"
-          >
-            <span :style="{ width: '24px', height: '24px', borderRadius: '7px', background: L.panel, border: `1px solid ${L.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', color: S.accentText }"><Icon :name="s.icon" :size="13" /></span>
-            <div :style="{ flex: 1, minWidth: 0 }">
-              <div :style="{ fontFamily: L.body, fontSize: '12.5px', fontWeight: 600, color: L.text }">{{ s.title }}</div>
-              <div :style="{ fontFamily: L.mono, fontSize: '9px', color: L.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ s.blurb }}</div>
+        <!-- walkthroughs only before any chat -->
+        <template v-if="conversation.length === 0">
+          <SecLabel :style="{ marginBottom: '9px' }">Guided walkthroughs</SecLabel>
+          <div :style="{ display: 'flex', flexDirection: 'column', gap: '7px', marginBottom: '12px' }">
+            <div
+              v-for="s in SCENARIOS"
+              :key="s.id"
+              :style="{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 11px', borderRadius: '9px', border: `1px solid ${L.border}`, background: L.pageBg, cursor: 'pointer' }"
+              @click="startScenario(s)"
+            >
+              <span :style="{ width: '24px', height: '24px', borderRadius: '7px', background: L.panel, border: `1px solid ${L.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto', color: S.accentText }"><Icon :name="s.icon" :size="13" /></span>
+              <div :style="{ flex: 1, minWidth: 0 }">
+                <div :style="{ fontFamily: L.body, fontSize: '12.5px', fontWeight: 600, color: L.text }">{{ s.title }}</div>
+                <div :style="{ fontFamily: L.mono, fontSize: '9px', color: L.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }">{{ s.blurb }}</div>
+              </div>
+              <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: L.mono, fontSize: '9px', color: S.accentText }"><Icon name="arrowR" :size="11" />{{ s.steps.length }}</span>
             </div>
-            <span :style="{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontFamily: L.mono, fontSize: '9px', color: S.accentText }"><Icon name="arrowR" :size="11" />{{ s.steps.length }}</span>
           </div>
-        </div>
+        </template>
+
+        <!-- functional composer -->
         <div :style="{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '9px', border: `1px solid ${L.border2}`, background: L.panel }">
           <Icon name="spark" :size="15" :style="{ color: L.text3 }" />
-          <span :style="{ flex: 1, fontFamily: L.body, fontSize: '13px', color: L.text3 }">Ask Crew or tell it where to go…</span>
-          <span :style="{ fontFamily: L.mono, fontSize: '9px', color: L.text3, border: `1px solid ${L.border}`, borderRadius: '4px', padding: '2px 5px' }">⌘K</span>
+          <input
+            v-model="draft"
+            type="text"
+            placeholder="Ask Crew or tell it where to go…"
+            :disabled="sending"
+            :style="{ flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent', fontFamily: L.body, fontSize: '13px', color: L.text }"
+            @keyup.enter="send(draft)"
+          />
+          <span
+            :style="{ cursor: sending ? 'default' : 'pointer', color: draft.trim() && !sending ? S.accent : L.text3, display: 'flex' }"
+            @click="send(draft)"
+          ><Icon name="arrowR" :size="16" /></span>
         </div>
       </template>
     </div>
